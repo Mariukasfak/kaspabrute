@@ -19,26 +19,37 @@ export default function SignUp() {
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // First, create the auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: {
+            username: email.split('@')[0]
+          }
+        }
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
 
-      // Create user profile
-      await supabase.from('users').insert({
-        id: data.user.id,
+      // Then create the user profile
+      const { error: profileError } = await supabase.from('users').insert({
+        id: authData.user.id,
         username: email.split('@')[0],
       });
 
-      // Create hero for the user
-      await supabase.from('heroes').insert({
-        user_id: data.user.id
+      if (profileError) throw profileError;
+
+      // Finally create the hero
+      const { error: heroError } = await supabase.from('heroes').insert({
+        user_id: authData.user.id
       });
+
+      if (heroError) throw heroError;
 
       navigate('/login');
     } catch (error) {
+      console.error('Signup error:', error);
       setError(error.message);
     }
   };
